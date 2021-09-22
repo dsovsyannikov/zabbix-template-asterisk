@@ -1,0 +1,109 @@
+zabbix_export:
+  version: '5.4'
+  date: '2021-09-21T12:57:11Z'
+  groups:
+    -
+      uuid: a571c0d144b14fd4a87a9d9b2aa9fcd6
+      name: Templates/Applications
+  templates:
+    -
+      uuid: e6c7c3c400e34b4fbe4cd514bfa54159
+      template: 'Template App Asterisk Service'
+      name: 'Template App Asterisk Service'
+      groups:
+        -
+          name: Templates/Applications
+      items:
+        -
+          uuid: d1224e5af3c7474a9dcb8abd4a651e88
+          name: 'Trunk Registered'
+          key: 'system.run["cd /tmp | asterisk -rx \"sip show registry\" | grep Registered | wc -l"]'
+          history: 1d
+          trends: '0'
+          tags:
+            -
+              tag: Application
+              value: Asterisk
+        -
+          uuid: e678003bc4794c01a4d77d2e6c0aaed1
+          name: 'Trunk ALL'
+          key: 'system.run["cd /tmp | asterisk -rx \"sip show registry\" | grep \"SIP registrations\" | awk ''{print $1}''"]'
+          delay: 5m
+          history: 1d
+          trends: '0'
+          tags:
+            -
+              tag: Application
+              value: Asterisk
+        -
+          uuid: f0a4e03b785042b99aa0eb2b1b5dc4a7
+          name: 'Trunk Problem'
+          key: 'system.run["cd /tmp | asterisk -rx \"sip show registry\" | sed -n ''/Request\|Rejected\|Authentication\|Auth/p''"]'
+          history: 1d
+          trends: '0'
+          value_type: TEXT
+          tags:
+            -
+              tag: Application
+              value: Asterisk
+          triggers:
+            -
+              uuid: 5e1cb22138674bdda93148557bc438af
+              expression: 'length(last(/Template App Asterisk Service/system.run["cd /tmp | asterisk -rx \"sip show registry\" | sed -n ''/Request\|Rejected\|Authentication\|Auth/p''"],#5))>0 and length(last(/Template App Asterisk Service/system.run["cd /tmp | asterisk -rx \"sip show registry\" | sed -n ''/Request\|Rejected\|Authentication\|Auth/p''"]))>0'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'length(last(/Template App Asterisk Service/system.run["cd /tmp | asterisk -rx \"sip show registry\" | sed -n ''/Request\|Rejected\|Authentication\|Auth/p''"]))=0'
+              name: 'Trunk Problem on {HOSTNAME}'
+              opdata: '{ITEM.LASTVALUE}'
+              priority: DISASTER
+              manual_close: 'YES'
+      discovery_rules:
+        -
+          uuid: f1da5b37a91e43c9801cd9d103538e53
+          name: TRUNKNAME
+          key: 'system.run["cd /tmp | asterisk -rx \"sip show registry\" | grep \"Registered\" | sed ''s/\@//'' | awk ''{print $1 \":\" $3}'' | jq -Rn ''{data: [inputs|{\"TRANKNAME\":.}]}''"]'
+          delay: 10m
+          lifetime: 1d
+          item_prototypes:
+            -
+              uuid: 952a61b733d84152952c463e57e3b889
+              name: '{#TRANKNAME} Status'
+              key: 'system.run["cd /tmp | asterisk -rx \"sip show registry\" | grep \"Registered\" | sed ''s/\@//'' |  awk ''{print $1 \":\" $3 \" \"$5}'' | grep \"{#TRANKNAME} \" | awk ''{print $2}'' | jq -Rn ''{data: [inputs|{\"STATUS\":.}]}''"]'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                -
+                  type: JSONPATH
+                  parameters:
+                    - $..STATUS
+                -
+                  type: TRIM
+                  parameters:
+                    - '[]'
+              tags:
+                -
+                  tag: Application
+                  value: Asterisk
+              trigger_prototypes:
+                -
+                  uuid: e8fbaca86f7e49518ae7968c9b81fc6f
+                  expression: 'find(/Template App Asterisk Service/system.run["cd /tmp | asterisk -rx \"sip show registry\" | grep \"Registered\" | sed ''s/\@//'' |  awk ''{print $1 \":\" $3 \" \"$5}'' | grep \"{#TRANKNAME} \" | awk ''{print $2}'' | jq -Rn ''{data: [inputs|{\"STATUS\":.}]}''"],#2,"like","Registered")=0'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'find(/Template App Asterisk Service/system.run["cd /tmp | asterisk -rx \"sip show registry\" | grep \"Registered\" | sed ''s/\@//'' |  awk ''{print $1 \":\" $3 \" \"$5}'' | grep \"{#TRANKNAME} \" | awk ''{print $2}'' | jq -Rn ''{data: [inputs|{\"STATUS\":.}]}''"],#2,"like","Registered")=1'
+                  name: '{#TRANKNAME} Status'
+                  priority: HIGH
+                  manual_close: 'YES'
+          lld_macro_paths:
+            -
+              lld_macro: '{#TRANKNAME}'
+              path: $.TRANKNAME
+  triggers:
+    -
+      uuid: cc9abd1f6d744229990ca9941d6f2cc2
+      expression: 'max(/Template App Asterisk Service/system.run["cd /tmp | asterisk -rx \"sip show registry\" | grep Registered | wc -l"],10m)<last(/Template App Asterisk Service/system.run["cd /tmp | asterisk -rx \"sip show registry\" | grep \"SIP registrations\" | awk ''{print $1}''"])'
+      recovery_mode: RECOVERY_EXPRESSION
+      recovery_expression: |
+        last(/Template App Asterisk Service/system.run["cd /tmp | asterisk -rx \"sip show registry\" | grep \"SIP registrations\" | awk '{print $1}'"])=
+        max(/Template App Asterisk Service/system.run["cd /tmp | asterisk -rx \"sip show registry\" | grep Registered | wc -l"],11m)
+      name: 'Trunk on {HOSTNAME}'
+      priority: DISASTER
+      manual_close: 'YES'
