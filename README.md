@@ -2,4 +2,4 @@
 
 Zabbix template for monitoring asterisk trunk
 
-dependencies: jq
+dependencies: jq, zabbix-agent as root
